@@ -10,7 +10,6 @@
       "installTools": true
     }
   },
-  "forwardPorts": [5432],
   "postStartCommand": "go install github.com/bootdotdev/bootdev@latest",
   "customizations": {
     "vscode": {
@@ -25,9 +24,6 @@
       }
     }
   },
-  "containerEnv": {
-    "DATABASE_URL": "postgres://postgres:postgres@db:5432/file-storage"
-  },
-
+  "forwardPorts": [8091],
   "postCreateCommand": "go version && bun -v"
 }

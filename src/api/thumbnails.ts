@@ -1,9 +1,9 @@
 import { getBearerToken, validateJWT } from "../auth";
 import { respondWithJSON } from "./json";
-import { getVideo } from "../db/videos";
+import { getVideo, updateVideo } from "../db/videos";
 import type { ApiConfig } from "../config";
-import type { BunRequest } from "bun";
-import { BadRequestError, NotFoundError } from "./errors";
+import { env, type BunRequest } from "bun";
+import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 
 type Thumbnail = {
   data: ArrayBuffer;
@@ -49,5 +49,36 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
 
   // TODO: implement the upload here
 
-  return respondWithJSON(200, null);
+  const formData = await req.formData();
+  const thumbnail = formData.get("thumbnail");
+
+  if (thumbnail instanceof File) {
+    const MAX_UPLOAD_SIZE = 10 << 20;
+
+    if (thumbnail.size > MAX_UPLOAD_SIZE)
+      throw new BadRequestError("Thumb is too large");
+
+    const mediaType = thumbnail.type;
+    const arrayBuffer = await thumbnail.arrayBuffer();
+
+    const video = getVideo(cfg.db, videoId);
+
+    if (video?.userID !== userID)
+      throw new UserForbiddenError("Not video owner");
+
+    videoThumbnails.set(videoId, {
+      mediaType: mediaType,
+      data: arrayBuffer,
+    });
+
+    const thumbUrl = `http://localhost:${cfg.port}/api/thumbnails/${videoId}`;
+
+    video.thumbnailURL = thumbUrl;
+
+    updateVideo(cfg.db, video);
+
+    return respondWithJSON(200, video);
+  } else {
+    throw new BadRequestError("Invalid thumbnail");
+  }
 }
